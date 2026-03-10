@@ -1,9 +1,24 @@
-// Task 2: Async Calculator App
+// Task 2: Async Calculator App (Advanced Version)
 // Name: Yonathan Tatek
 // ID: ATE/6955/15
 
+import 'dart:async';
+
+// Extension 3: Custom Exception for Input Validation
+class UnrecognizedOperationException implements Exception {
+  final String operation;
+  UnrecognizedOperationException(this.operation);
+
+  @override
+  String toString() =>
+      'UnrecognizedOperationException: "$operation" is not a valid operation.';
+}
+
 class Calculator {
-  // Synchronous divide method as required by the conceptual questions
+  // Extension 1: History Log
+  final List<String> _history = [];
+
+  // Synchronous divide method
   double divide(double a, double b) {
     if (b == 0) {
       throw ArgumentError('Cannot divide by zero.');
@@ -11,31 +26,61 @@ class Calculator {
     return a / b;
   }
 
-  // Asynchronous computeAsync method as required by the conceptual questions
+  // Asynchronous computeAsync method with Extension 1 (History) and 3 (Validation)
   Future<double> computeAsync(double a, double b, String operation) async {
     await _simulateNetworkDelay();
+    double result;
+
     switch (operation) {
       case 'add':
-        return a + b;
+        result = a + b;
+        break;
       case 'subtract':
-        return a - b;
+        result = a - b;
+        break;
       case 'multiply':
-        return a * b;
+        result = a * b;
+        break;
       case 'divide':
-        return divide(a, b);
+        result = divide(a, b);
+        break;
       default:
-        throw ArgumentError('Invalid operation');
+        throw UnrecognizedOperationException(operation);
+    }
+
+    // Record every completed calculation
+    _history.add('$operation($a, $b) = $result');
+    return result;
+  }
+
+  // Extension 2: Chain Operations (sequentially applied)
+  Future<double> computeChained(List<double> values, String op) async {
+    if (values.isEmpty) return 0.0;
+    double current = values[0];
+    for (int i = 1; i < values.length; i++) {
+      current = await computeAsync(current, values[i], op);
+    }
+    return current;
+  }
+
+  // Extension 1: Print History
+  void printHistory() {
+    print('\n--- Calculation History ---');
+    if (_history.isEmpty) {
+      print('No calculations recorded.');
+    } else {
+      for (var record in _history) print(record);
     }
   }
 
-  // Simulated internal delay with the specific message provided
+  // Simulated internal delay
   Future<void> _simulateNetworkDelay() async {
     print('[1.5 second pause]');
     await Future.delayed(Duration(milliseconds: 1500));
   }
 }
 
-// Method to display results and handle exceptions using try-catch as required
+// Method updated to handle Extension 3 exception
 Future<void> displayResult(
   double a,
   double b,
@@ -47,23 +92,57 @@ Future<void> displayResult(
     print('$operation($a, $b) = $result');
   } on ArgumentError catch (e) {
     print('Error: ${e.message}');
+  } on UnrecognizedOperationException catch (e) {
+    print(e);
   } catch (e) {
-    print('Error: $e');
+    print('Unexpected Error: $e');
   }
 }
 
 void main() async {
   final calc = Calculator();
 
-  print(' --- MyCalculator --- ');
+  print(' --- MyCalculator (Advanced) --- ');
 
-  // Sequential execution to match the exact output trace requested
-  await displayResult(20.0, 4.0, 'add', calc);
-  await displayResult(20.0, 4.0, 'subtract', calc);
-  await displayResult(20.0, 4.0, 'multiply', calc);
-  await displayResult(20.0, 4.0, 'divide', calc);
-  await displayResult(25.0, 3.0, 'divide', calc);
-  await displayResult(20.0, 0.0, 'divide', calc);
+  // 1. STANDARD OPERATIONS (Sequential)
+  await displayResult(10.0, 4.0, 'add', calc);
+  await displayResult(15.0, 3.0, 'divide', calc);
+  await displayResult(10.0, 0.0, 'divide', calc);
 
-  print('All calculations complete.');
+  // 2. EXTENSION: CHAIN OPERATIONS
+  print('\n--- Testing Chained Addition ([1, 2, 3, 4]) ---');
+  double result = await calc.computeChained([1.0, 2.0, 3.0, 4.0], 'add');
+  print('Chained Result: $result');
+
+  // 3. EXTENSION: INPUT VALIDATION
+  print('\n--- Testing Invalid Operation ---');
+  await displayResult(10, 5, 'modulo', calc);
+
+  // 4. EXTENSION: PARALLEL FUTURES (Future.wait)
+  print('\n--- Testing Parallel Execution (3 Tasks) ---');
+  Stopwatch stopwatch = Stopwatch()..start();
+
+  /* 
+    WHY PARALLEL IS FASTER:
+    In sequential execution, the code waits for each 1.5s delay to finish before starting the next.
+    In contrast, Future.wait() triggers all asynchronous operations at once. 
+    The Dart event loop manages them as they wait for their timers concurrently, 
+    meaning the total duration is roughly that of the longest single delay (1.5s) 
+    instead of the cumulative sum (4.5s).
+  */
+  await Future.wait([
+    displayResult(5, 5, 'add', calc),
+    displayResult(20, 10, 'subtract', calc),
+    displayResult(4, 4, 'multiply', calc),
+  ]);
+
+  stopwatch.stop();
+  print(
+    'Total time for 3 parallel operations: ${stopwatch.elapsed.inMilliseconds}ms',
+  );
+
+  // 5. EXTENSION: HISTORY LOG
+  calc.printHistory();
+
+  print('\nAll operations complete.');
 }
