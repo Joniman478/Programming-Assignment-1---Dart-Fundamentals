@@ -2,73 +2,68 @@
 // Name: Yonathan Tatek
 // ID: ATE/6955/15
 
-import 'dart:async';
-
-class DivisionByZeroException implements Exception {
-  final String message;
-  DivisionByZeroException([this.message = 'Cannot divide by zero']);
-  @override
-  String toString() => 'DivisionByZeroException: $message';
-}
-
 class Calculator {
-  Future<double> add(double a, double b) async {
-    await _simulateNetworkDelay();
-    return a + b;
-  }
-
-  Future<double> subtract(double a, double b) async {
-    await _simulateNetworkDelay();
-    return a - b;
-  }
-
-  Future<double> multiply(double a, double b) async {
-    await _simulateNetworkDelay();
-    return a * b;
-  }
-
-  Future<double> divide(double a, double b) async {
-    await _simulateNetworkDelay();
+  // Synchronous divide method as required by the conceptual questions
+  double divide(double a, double b) {
     if (b == 0) {
-      throw DivisionByZeroException();
+      throw ArgumentError('Cannot divide by zero.');
     }
     return a / b;
   }
 
+  // Asynchronous computeAsync method as required by the conceptual questions
+  Future<double> computeAsync(double a, double b, String operation) async {
+    await _simulateNetworkDelay();
+    switch (operation) {
+      case 'add':
+        return a + b;
+      case 'subtract':
+        return a - b;
+      case 'multiply':
+        return a * b;
+      case 'divide':
+        return divide(a, b);
+      default:
+        throw ArgumentError('Invalid operation');
+    }
+  }
+
+  // Simulated internal delay with the specific message provided
   Future<void> _simulateNetworkDelay() async {
     print('[1.5 second pause]');
-    // Simulate a network delay of 1.5 seconds
     await Future.delayed(Duration(milliseconds: 1500));
+  }
+}
+
+// Method to display results and handle exceptions using try-catch as required
+Future<void> displayResult(
+  double a,
+  double b,
+  String operation,
+  Calculator calc,
+) async {
+  try {
+    double result = await calc.computeAsync(a, b, operation);
+    print('$operation($a, $b) = $result');
+  } on ArgumentError catch (e) {
+    print('Error: ${e.message}');
+  } catch (e) {
+    print('Error: $e');
   }
 }
 
 void main() async {
   final calc = Calculator();
 
-  print('--- MyCalculator ---');
+  print(' --- MyCalculator --- ');
 
-  try {
-    double res1 = await calc.add(10.0, 4.0);
-    print('add(10.0, 4.0) = $res1');
+  // Sequential execution to match the exact output trace requested
+  await displayResult(20.0, 4.0, 'add', calc);
+  await displayResult(20.0, 4.0, 'subtract', calc);
+  await displayResult(20.0, 4.0, 'multiply', calc);
+  await displayResult(20.0, 4.0, 'divide', calc);
+  await displayResult(25.0, 3.0, 'divide', calc);
+  await displayResult(20.0, 0.0, 'divide', calc);
 
-    double res2 = await calc.subtract(10.0, 4.0);
-    print('subtract(10.0, 4.0) = $res2');
-
-    double res3 = await calc.multiply(10.0, 4.0);
-    print('multiply(10.0, 4.0) = $res3');
-
-    double res4 = await calc.divide(10.0, 4.0);
-    print('divide(10.0, 4.0) = $res4');
-
-    double res5 = await calc.divide(15.0, 3.0);
-    print('divide(15.0, 3.0) = $res5');
-
-    await calc.divide(10.0, 0.0);
-  } on DivisionByZeroException catch (e) {
-    print('Error: ${e.message}');
-  } catch (e) {
-    print('An unexpected error occurred: $e');
-  } finally {
-    print('All calculations complete.');
-  }
+  print('All calculations complete.');
 }
